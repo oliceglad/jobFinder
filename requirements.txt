@@ -1,0 +1,39 @@
+# ------------------------
+# Web / API
+# ------------------------
+fastapi
+uvicorn[standard]
+
+# ------------------------
+# Database
+# ------------------------
+sqlalchemy>=2.0
+asyncpg
+alembic
+
+# ------------------------
+# Auth & Security
+# ------------------------
+python-jose
+passlib[bcrypt]
+pydantic
+pydantic-settings
+email-validator
+
+# ------------------------
+# HTTP client (parsing)
+# ------------------------
+httpx
+
+# ------------------------
+# ML / Recommender
+# ------------------------
+scikit-learn
+sentence-transformers
+numpy
+scipy
+
+# ------------------------
+# Utils
+# ------------------------
+python-dotenv
