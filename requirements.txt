@@ -16,6 +16,7 @@ alembic
 # ------------------------
 python-jose
 passlib[bcrypt]
+bcrypt<4.0.0
 pydantic
 pydantic-settings
 email-validator
@@ -37,3 +38,4 @@ scipy
 # Utils
 # ------------------------
 python-dotenv
+psycopg2-binary
