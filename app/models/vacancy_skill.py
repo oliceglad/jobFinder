@@ -11,5 +11,5 @@ class VacancySkill(Base):
 
     weight: Mapped[float | None] = mapped_column(Float)  # важность навыка
 
-    vacancy: Mapped["Vacancy"] = relationship(back_populates="skills")
-    skill: Mapped["Skill"] = relationship(back_populates="vacancies")
+    vacancy: Mapped["Vacancy"] = relationship(back_populates="skills", lazy="selectin")
+    skill: Mapped["Skill"] = relationship(back_populates="vacancies", lazy="selectin")

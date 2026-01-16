@@ -19,7 +19,10 @@ class EmbeddingService:
         user_text: str,
         vacancies_texts: list[str]
     ) -> list[float]:
-        model = cls.get_model()
+        try:
+            model = cls.get_model()
+        except Exception:
+            return [0.0 for _ in vacancies_texts]
 
         embeddings = model.encode(
             [user_text] + vacancies_texts,

@@ -1,12 +1,34 @@
-def build_user_profile_text(skills: list[str]) -> str:
+def build_user_profile_text(
+    skills: list[str],
+    keywords: str | None = None,
+    about: str | None = None,
+) -> str:
     """
-    Преобразует навыки пользователя в текстовый профиль
+    Build a user profile text for similarity models.
     """
-    return " ".join(skills)
+    parts = list(skills)
+    if keywords:
+        parts.append(keywords)
+    if about:
+        parts.append(about)
+    return " ".join(parts)
 
 
-def build_vacancy_text(title: str, description: str) -> str:
+def build_vacancy_text(
+    title: str,
+    description: str,
+    requirements: str | None = None,
+    responsibilities: str | None = None,
+    company: str | None = None,
+) -> str:
     """
-    Текст вакансии для TF-IDF
+    Vacancy text for TF-IDF/embeddings.
     """
-    return f"{title} {description}"
+    parts = [title, description or ""]
+    if requirements:
+        parts.append(requirements)
+    if responsibilities:
+        parts.append(responsibilities)
+    if company:
+        parts.append(company)
+    return " ".join(parts)

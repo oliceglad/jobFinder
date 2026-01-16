@@ -10,5 +10,5 @@ class Skill(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True)
     normalized_name: Mapped[str] = mapped_column(String(100), index=True)
 
-    users: Mapped[list["UserSkill"]] = relationship(back_populates="skill")
-    vacancies: Mapped[list["VacancySkill"]] = relationship(back_populates="skill")
+    users: Mapped[list["UserSkill"]] = relationship(back_populates="skill", lazy="selectin")
+    vacancies: Mapped[list["VacancySkill"]] = relationship(back_populates="skill", lazy="selectin")

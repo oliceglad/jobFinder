@@ -39,3 +39,5 @@ scipy
 # ------------------------
 python-dotenv
 psycopg2-binary
+python-multipart
+pillow

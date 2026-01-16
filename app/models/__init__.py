@@ -4,3 +4,9 @@ from .skill import Skill
 from .user_skill import UserSkill
 from .vacancy import Vacancy
 from .vacancy_skill import VacancySkill
+from .profile import Profile
+from .favorite_vacancy import FavoriteVacancy
+from .application_status import ApplicationStatus
+from .notification import Notification
+from .vacancy_notification import VacancyNotification
+from .recommendation_cache import RecommendationCache

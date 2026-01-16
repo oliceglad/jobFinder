@@ -8,7 +8,12 @@ from app.core.security import hash_password, verify_password, create_access_toke
 class AuthService:
 
     @staticmethod
-    async def register(db: AsyncSession, email: str, password: str) -> User:
+    async def register(
+        db: AsyncSession,
+        email: str,
+        password: str,
+        role: str | None = None,
+    ) -> User:
         result = await db.execute(
             select(User).where(User.email == email)
         )
@@ -18,9 +23,16 @@ class AuthService:
                 detail="User already exists"
             )
 
+        if role not in (None, "seeker", "employer"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid role"
+            )
+
         user = User(
             email=email,
-            hashed_password=hash_password(password)
+            hashed_password=hash_password(password),
+            role=role or "seeker",
         )
         db.add(user)
         await db.commit()
