@@ -51,6 +51,11 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"
             )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is inactive"
+            )
 
         token = create_access_token({"sub": str(user.id)})
         return token

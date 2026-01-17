@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import {
   useApplicationsQuery,
   useVacanciesByIdsQuery,
-  useUpdateApplicationMutation,
   useDeleteApplicationMutation,
 } from "../app/api.js";
 import useToast from "../components/useToast.js";
@@ -16,11 +15,17 @@ export default function PipelinePage() {
   const { data: vacancies = [] } = useVacanciesByIdsQuery(vacancyIds, {
     skip: vacancyIds.length === 0,
   });
-  const [updateApplication] = useUpdateApplicationMutation();
   const [deleteApplication] = useDeleteApplicationMutation();
   const { notify } = useToast();
 
   const vacancyMap = new Map(vacancies.map((vacancy) => [vacancy.id, vacancy]));
+  const statusLabel = {
+    applied: "Откликнулся",
+    interview: "Интервью",
+    offer: "Оффер",
+    rejected: "Отказ",
+    success: "Успех",
+  };
 
   return (
     <div className="card">
@@ -28,27 +33,27 @@ export default function PipelinePage() {
       <div className="list">
         {applications.map((app) => {
           const vacancy = vacancyMap.get(app.vacancy_id);
+          const contacts = [app.contact_email, app.contact_phone].filter(Boolean).join(" · ");
           return (
             <div className="list-item" key={app.id}>
               <div>
                 <h4>{vacancy?.title || `Вакансия #${app.vacancy_id}`}</h4>
                 <p className="muted">{vacancy?.company || "Компания"}</p>
                 <p className="muted">{app.notes}</p>
+                <div className="vacancy-badges">
+                  <span className="badge badge-status">
+                    {statusLabel[app.status] || app.status}
+                  </span>
+                </div>
+                {app.status === "success" && (app.contact_name || contacts) && (
+                  <div className="contact-card">
+                    <div className="contact-title">Контакты работодателя</div>
+                    {app.contact_name && <div className="contact-row">{app.contact_name}</div>}
+                    {contacts && <div className="contact-row">{contacts}</div>}
+                  </div>
+                )}
               </div>
               <div className="actions">
-                <select
-                  value={app.status}
-                  onChange={(e) =>
-                    updateApplication({ id: app.id, status: e.target.value })
-                      .unwrap()
-                      .then(() => notify("Статус обновлен", "success"))
-                  }
-                >
-                  <option value="applied">Откликнулся</option>
-                  <option value="interview">Интервью</option>
-                  <option value="offer">Оффер</option>
-                  <option value="rejected">Отказ</option>
-                </select>
                 <button
                   className="ghost"
                   onClick={() =>

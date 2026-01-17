@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../app/authSlice.js";
 import GlobalStatus from "./GlobalStatus.jsx";
@@ -9,6 +10,7 @@ const baseTabs = [
   { to: "/vacancies", label: "Вакансии" },
   { to: "/recommendations", label: "Рекомендации" },
   { to: "/pipeline", label: "Отклики" },
+  { to: "/notifications", label: "Уведомления" },
   { to: "/profile", label: "Профиль" },
 ];
 
@@ -16,8 +18,28 @@ export default function AppShell({ children, routeKey }) {
   const user = useSelector((state) => state.auth.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  useEffect(() => {
+    if (!user) return;
+    const key = `lk-refreshed-${user.id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "true");
+    window.location.reload();
+  }, [user]);
 
-  const tabs = [...baseTabs];
+  const tabs = baseTabs.filter((tab) => {
+    if (user?.role === "employer") {
+      return (
+        tab.to !== "/vacancies" &&
+        tab.to !== "/recommendations" &&
+        tab.to !== "/pipeline" &&
+        tab.to !== "/notifications"
+      );
+    }
+    if (user?.role === "admin") {
+      return tab.to === "/dashboard";
+    }
+    return true;
+  });
   if (user?.role === "employer") {
     tabs.push({ to: "/employer", label: "Работодатель" });
   }
@@ -42,7 +64,6 @@ export default function AppShell({ children, routeKey }) {
       <div className="layout">
         <aside className="sidebar">
           <div className="brand">JobFinder</div>
-          <p className="muted">Навигация по сервису</p>
           <nav className="tabs">
             {tabs.map((tab) => (
               <NavLink
@@ -58,13 +79,16 @@ export default function AppShell({ children, routeKey }) {
         </aside>
         <section className="main">
           <header className="header">
-            <div>
+            <div className="header-title">
               <h2>Панель управления</h2>
-              <p className="muted">Вакансии, отклики и рекомендации — всё здесь</p>
             </div>
             <div className="header-actions">
-              <span className="pill">Роль: {roleLabel}</span>
-              <span className="pill">{user?.email}</span>
+              <span className="role-pill">
+                <span className="role-dot" />
+                <span className="role-label">Роль:</span>
+                <span className="role-value">{roleLabel}</span>
+              </span>
+              <span className="pill email-pill">{user?.email}</span>
               <button className="ghost" onClick={handleLogout}>Выйти</button>
             </div>
           </header>

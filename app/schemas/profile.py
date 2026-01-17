@@ -14,6 +14,9 @@ class ProfileBase(BaseModel):
     experience_years: int | None = None
     keywords: str | None = None
     about: str | None = None
+    company_name: str | None = None
+    company_site: str | None = None
+    company_description: str | None = None
 
 class ProfileCreate(ProfileBase):
     pass

@@ -21,6 +21,7 @@ class VacancyBase(BaseModel):
     parsed_from_hh: bool = False
     external_id: str | None = None
     published_at: datetime | None = None
+    moderation_status: str | None = None
 
 class VacancyCreate(VacancyBase):
     skill_ids: list[int] | None = None
@@ -44,6 +45,7 @@ class VacancyUpdate(BaseModel):
     source: str | None = None
     external_id: str | None = None
     published_at: datetime | None = None
+    moderation_status: str | None = None
 
 class VacancyOut(VacancyBase):
     id: int

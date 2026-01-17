@@ -48,6 +48,10 @@ export const api = createApi({
     "Recommendations",
     "Favorites",
     "Applications",
+    "Notifications",
+    "Dashboard",
+    "Admin",
+    "Talents",
   ],
   endpoints: (builder) => ({
     login: builder.mutation({
@@ -158,6 +162,66 @@ export const api = createApi({
       query: () => "/recommendations/",
       providesTags: ["Recommendations"],
     }),
+    dashboardMetrics: builder.query({
+      query: () => "/dashboard/metrics",
+      providesTags: ["Dashboard"],
+    }),
+    adminStats: builder.query({
+      query: () => "/admin/stats",
+      providesTags: ["Admin"],
+    }),
+    adminUsers: builder.query({
+      query: () => "/admin/users",
+      providesTags: ["Admin"],
+    }),
+    updateAdminUser: builder.mutation({
+      query: ({ id, ...payload }) => ({
+        url: `/admin/users/${id}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["Admin"],
+    }),
+    adminVacancies: builder.query({
+      query: (params = {}) => ({
+        url: "/admin/vacancies",
+        params,
+      }),
+      providesTags: ["Admin"],
+    }),
+    updateAdminVacancy: builder.mutation({
+      query: ({ id, ...payload }) => ({
+        url: `/admin/vacancies/${id}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["Admin"],
+    }),
+    adminModerationLogs: builder.query({
+      query: (params = {}) => ({
+        url: "/admin/moderation/logs",
+        params,
+      }),
+      providesTags: ["Admin"],
+    }),
+    talents: builder.query({
+      query: (params = {}) => ({
+        url: "/talents/",
+        params,
+      }),
+      providesTags: ["Talents"],
+    }),
+    notifications: builder.query({
+      query: () => "/notifications/",
+      providesTags: ["Notifications"],
+    }),
+    markNotificationRead: builder.mutation({
+      query: (id) => ({
+        url: `/notifications/read/${id}`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
     favorites: builder.query({
       query: () => "/favorites/",
       providesTags: ["Favorites"],
@@ -178,6 +242,10 @@ export const api = createApi({
     }),
     applications: builder.query({
       query: () => "/applications/",
+      providesTags: ["Applications"],
+    }),
+    incomingApplications: builder.query({
+      query: () => "/applications/incoming",
       providesTags: ["Applications"],
     }),
     createApplication: builder.mutation({
@@ -202,13 +270,6 @@ export const api = createApi({
         method: "DELETE",
       }),
       invalidatesTags: ["Applications"],
-    }),
-    parseHH: builder.mutation({
-      query: (params) => ({
-        url: "/vacancies/parse/hh",
-        method: "POST",
-        params,
-      }),
     }),
     createVacancy: builder.mutation({
       query: (payload) => ({
@@ -241,13 +302,23 @@ export const {
   useVacancyQuery,
   useVacanciesByIdsQuery,
   useRecommendationsQuery,
+  useDashboardMetricsQuery,
+  useAdminStatsQuery,
+  useAdminUsersQuery,
+  useUpdateAdminUserMutation,
+  useAdminVacanciesQuery,
+  useUpdateAdminVacancyMutation,
+  useAdminModerationLogsQuery,
+  useTalentsQuery,
+  useNotificationsQuery,
+  useMarkNotificationReadMutation,
   useFavoritesQuery,
   useAddFavoriteMutation,
   useRemoveFavoriteMutation,
   useApplicationsQuery,
+  useIncomingApplicationsQuery,
   useCreateApplicationMutation,
   useUpdateApplicationMutation,
   useDeleteApplicationMutation,
-  useParseHHMutation,
   useCreateVacancyMutation,
 } = api;

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -6,12 +6,12 @@ from app.api.deps import require_roles
 from app.models import User
 from app.services.recommendation_service import RecommendationService
 from app.schemas.recommendation import RecommendedVacancy
+from app.tasks import refresh_recommendations_cache_task
 
 router = APIRouter()
 
 @router.get("/", response_model=list[RecommendedVacancy])
 async def get_recommendations(
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles("seeker", "admin"))
 ):
@@ -21,11 +21,7 @@ async def get_recommendations(
         limit=10,
     )
     if not cached_rows:
-        background_tasks.add_task(
-            RecommendationService.refresh_cache_for_user,
-            current_user.id,
-            10,
-        )
+        refresh_recommendations_cache_task.delay(current_user.id, 10)
         return []
 
     return [

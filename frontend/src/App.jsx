@@ -9,6 +9,7 @@ import VacanciesPage from "./pages/VacanciesPage.jsx";
 import VacancyDetailPage from "./pages/VacancyDetailPage.jsx";
 import RecommendationsPage from "./pages/RecommendationsPage.jsx";
 import RecommendationDetailPage from "./pages/RecommendationDetailPage.jsx";
+import NotificationsPage from "./pages/NotificationsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
 import EmployerPage from "./pages/EmployerPage.jsx";
@@ -33,7 +34,10 @@ export default function App() {
 
   const { data: skills = [] } = useSkillsQuery(undefined, { skip: !token });
   const { data: userSkills = [] } = useUserSkillsQuery(undefined, { skip: !token });
-  const { data: profile, error: profileError, isLoading: profileLoading, isFetching: profileFetching } = useProfileQuery(undefined, { skip: !token });
+  const { data: profile, error: profileError, isLoading: profileLoading, isFetching: profileFetching } = useProfileQuery(
+    undefined,
+    { skip: !token || user?.role !== "seeker" }
+  );
 
   const [addUserSkill] = useAddUserSkillMutation();
   const [updateProfile] = useUpdateProfileMutation();
@@ -73,6 +77,7 @@ export default function App() {
                   <Route path="/recommendations" element={<RecommendationsPage />} />
                   <Route path="/recommendations/:id" element={<RecommendationDetailPage />} />
                   <Route path="/pipeline" element={<PipelinePage />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route
                     path="/admin"

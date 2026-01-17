@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     NOTIFY_DIGEST_LOOKBACK_HOURS: int = 24
     CORS_ORIGINS: str = "*"
     DEMO_SEED_ENABLED: bool = False
+    CELERY_BROKER_URL: str = "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND: str | None = None
 
     class Config:
         env_file = ".env"

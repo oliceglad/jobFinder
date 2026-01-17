@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -7,6 +7,7 @@ from app.api.deps import require_roles
 from app.models import User, Notification
 from app.schemas.notification import NotificationCreate, NotificationOut
 from app.services.notification_service import NotificationService
+from app.tasks import notify_new_vacancies_task, notify_users_by_role_task
 
 router = APIRouter()
 
@@ -37,23 +38,16 @@ async def mark_notification_read(
 @router.post("/broadcast")
 async def broadcast_notification(
     payload: NotificationCreate,
-    background_tasks: BackgroundTasks,
     role: str = "seeker",
     current_user: User = Depends(require_roles("admin")),
 ):
-    background_tasks.add_task(
-        NotificationService.notify_users_by_role,
-        role,
-        payload.title,
-        payload.body,
-    )
+    notify_users_by_role_task.delay(role, payload.title, payload.body)
     return {"status": "queued"}
 
 @router.post("/new-vacancies")
 async def notify_new_vacancies(
-    background_tasks: BackgroundTasks,
     hours: int = 24,
     current_user: User = Depends(require_roles("admin")),
 ):
-    background_tasks.add_task(NotificationService.notify_new_vacancies, hours)
+    notify_new_vacancies_task.delay(hours)
     return {"status": "queued"}

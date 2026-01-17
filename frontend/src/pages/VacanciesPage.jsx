@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useSelector } from "react-redux";
 import {
   useAddFavoriteMutation,
   useCreateApplicationMutation,
@@ -9,20 +8,85 @@ import {
   useLazyVacanciesQuery,
   useLazySearchVacanciesQuery,
   useRemoveFavoriteMutation,
-  useParseHHMutation,
 } from "../app/api.js";
 import useToast from "../components/useToast.js";
 
 export default function VacanciesPage() {
   const PAGE_SIZE = 20;
+  const SALARY_MIN = 0;
+  const SALARY_MAX = 300000;
+  const SALARY_STEP = 5000;
+  const CITY_OPTIONS = [
+    "Москва",
+    "Санкт-Петербург",
+    "Новосибирск",
+    "Екатеринбург",
+    "Казань",
+    "Нижний Новгород",
+    "Челябинск",
+    "Самара",
+    "Омск",
+    "Ростов-на-Дону",
+    "Уфа",
+    "Красноярск",
+    "Пермь",
+    "Воронеж",
+    "Волгоград",
+    "Краснодар",
+    "Саратов",
+    "Тюмень",
+    "Тольятти",
+    "Ижевск",
+    "Барнаул",
+    "Ульяновск",
+    "Иркутск",
+    "Хабаровск",
+    "Ярославль",
+    "Владивосток",
+    "Махачкала",
+    "Томск",
+    "Оренбург",
+    "Кемерово",
+  ];
+  const SOURCE_OPTIONS = [
+    { value: "hh", label: "HH.ru" },
+    { value: "manual", label: "Ручные" },
+  ];
+
+  const formatSalary = (vacancy) => {
+    const currency = vacancy.salary_currency
+      ? vacancy.salary_currency.toUpperCase()
+      : "RUB";
+    const formatValue = (value) => Number(value).toLocaleString("ru-RU");
+    if (vacancy.salary_from && vacancy.salary_to) {
+      return `${formatValue(vacancy.salary_from)}–${formatValue(vacancy.salary_to)} ${currency}`;
+    }
+    if (vacancy.salary_from) {
+      return `от ${formatValue(vacancy.salary_from)} ${currency}`;
+    }
+    if (vacancy.salary_to) {
+      return `до ${formatValue(vacancy.salary_to)} ${currency}`;
+    }
+    return null;
+  };
+
+  const normalizeTokens = (value) =>
+    value
+      .split(/[\\s,]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialText = searchParams.get("text") || "";
+  const initialSalaryFrom = Number(searchParams.get("salary_from") || SALARY_MIN) || SALARY_MIN;
+  const initialSalaryTo = Number(searchParams.get("salary_to") || SALARY_MAX) || SALARY_MAX;
   const [filters, setFilters] = useState({
-    text: searchParams.get("text") || "",
+    text: initialText,
     city: searchParams.get("city") || "",
     is_remote: searchParams.get("is_remote") || "",
-    salary_from: searchParams.get("salary_from") || "",
-    salary_to: searchParams.get("salary_to") || "",
+    salary_from: initialSalaryFrom,
+    salary_to: initialSalaryTo,
     source: searchParams.get("source") || "",
   });
   const [submitted, setSubmitted] = useState(() => {
@@ -30,7 +94,6 @@ export default function VacanciesPage() {
     return Object.keys(params).length ? params : null;
   });
 
-  const user = useSelector((state) => state.auth.user);
   const { data: favorites = [] } = useFavoritesQuery();
   const { data: userSkills = [] } = useUserSkillsQuery();
   const [fetchVacancies, vacanciesResult] = useLazyVacanciesQuery();
@@ -38,14 +101,17 @@ export default function VacanciesPage() {
   const [addFavorite] = useAddFavoriteMutation();
   const [removeFavorite] = useRemoveFavoriteMutation();
   const [createApplication] = useCreateApplicationMutation();
-  const [parseHH] = useParseHHMutation();
   const { notify } = useToast();
 
   const favoriteIds = new Set(favorites.map((fav) => fav.vacancy_id));
   const [onlyMatched, setOnlyMatched] = useState(searchParams.get("onlyMatched") === "1");
   const [onlyFavorites, setOnlyFavorites] = useState(searchParams.get("onlyFavorites") === "1");
-  const [hhText, setHhText] = useState(searchParams.get("hh_text") || filters.text || "python");
-  const [hhArea, setHhArea] = useState(searchParams.get("hh_area") || "");
+  const [keywordTokens, setKeywordTokens] = useState(() => normalizeTokens(initialText));
+  const [keywordInput, setKeywordInput] = useState("");
+  const [sourceFilters, setSourceFilters] = useState(() => {
+    const source = searchParams.get("source");
+    return source ? [source] : [];
+  });
   const allowedSearchKeys = useMemo(
     () => new Set(["text", "city", "is_remote", "salary_from", "salary_to", "source"]),
     []
@@ -53,7 +119,8 @@ export default function VacanciesPage() {
   const searchPayload = useMemo(() => {
     if (!submitted) return null;
     const entries = Object.entries(submitted).filter(
-      ([key, value]) => allowedSearchKeys.has(key) && value !== ""
+      ([key, value]) =>
+        allowedSearchKeys.has(key) && value !== "" && value !== null && value !== undefined
     );
     if (entries.length === 0) return null;
     return Object.fromEntries(entries);
@@ -134,11 +201,24 @@ export default function VacanciesPage() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    const params = Object.fromEntries(
-      Object.entries(filters).filter(([, value]) => value !== "")
-    );
+    const nextTokens = [...keywordTokens, ...normalizeTokens(keywordInput)];
+    const uniqueTokens = Array.from(new Set(nextTokens));
+    const textValue = uniqueTokens.join(" ");
+    if (keywordInput.trim()) {
+      setKeywordTokens(uniqueTokens);
+      setKeywordInput("");
+    }
+
+    const params = {};
+    if (textValue) params.text = textValue;
+    if (filters.city) params.city = filters.city;
+    if (filters.is_remote) params.is_remote = filters.is_remote;
+    if (filters.salary_from > SALARY_MIN) params.salary_from = filters.salary_from;
+    if (filters.salary_to < SALARY_MAX) params.salary_to = filters.salary_to;
+    if (filters.source) params.source = filters.source;
     if (onlyMatched) params.onlyMatched = "1";
     if (onlyFavorites) params.onlyFavorites = "1";
+    setFilters((prev) => ({ ...prev, text: textValue }));
     setSearchParams(params);
     setVacancies([]);
     setOffset(0);
@@ -161,17 +241,68 @@ export default function VacanciesPage() {
     notify("Отклик отправлен", "success");
   };
 
-  const handleParseHH = async () => {
-    if (!hhText.trim()) {
-      notify("Введите текст для поиска", "warn");
+  const commitKeywordInput = useCallback(() => {
+    const tokens = normalizeTokens(keywordInput);
+    if (tokens.length === 0) return;
+    setKeywordTokens((prev) => {
+      const next = new Set(prev);
+      tokens.forEach((token) => next.add(token));
+      return Array.from(next);
+    });
+    setKeywordInput("");
+  }, [keywordInput]);
+
+  useEffect(() => {
+    if (!keywordTokens.length) {
+      setFilters((prev) => ({ ...prev, text: "" }));
       return;
     }
-    await parseHH({ text: hhText.trim(), area: hhArea || undefined, pages: 1 }).unwrap();
-    notify("Вакансии с HH добавлены", "success");
-    setVacancies([]);
-    setOffset(0);
-    setHasMore(true);
-    loadPage(0);
+    setFilters((prev) => ({ ...prev, text: keywordTokens.join(" ") }));
+  }, [keywordTokens]);
+
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      source: sourceFilters.length === 1 ? sourceFilters[0] : "",
+    }));
+  }, [sourceFilters]);
+
+  const handleKeywordKeyDown = (event) => {
+    if (event.key === " " || event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      commitKeywordInput();
+      return;
+    }
+    if (event.key === "Backspace" && !keywordInput) {
+      setKeywordTokens((prev) => prev.slice(0, -1));
+    }
+  };
+
+  const handleSalaryFromChange = (value) => {
+    const next = Number(value);
+    setFilters((prev) => ({
+      ...prev,
+      salary_from: next,
+      salary_to: Math.max(prev.salary_to, next),
+    }));
+  };
+
+  const handleSalaryToChange = (value) => {
+    const next = Number(value);
+    setFilters((prev) => ({
+      ...prev,
+      salary_from: Math.min(prev.salary_from, next),
+      salary_to: next,
+    }));
+  };
+
+  const toggleSource = (value) => {
+    setSourceFilters((prev) => {
+      if (prev.includes(value)) {
+        return prev.filter((item) => item !== value);
+      }
+      return [...prev, value];
+    });
   };
 
   return (
@@ -190,19 +321,35 @@ export default function VacanciesPage() {
         <form className="filter-grid desktop-only" onSubmit={handleSubmit}>
           <label className="filter-group">
             <span>Ключевые слова</span>
-            <input
-              placeholder="Например: backend, react"
-              value={filters.text}
-              onChange={(e) => setFilters({ ...filters, text: e.target.value })}
-            />
+            <div className="token-input">
+              {keywordTokens.map((token) => (
+                <span className="token-chip" key={token}>
+                  {token}
+                  <button type="button" onClick={() => setKeywordTokens((prev) => prev.filter((item) => item !== token))}>
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                placeholder="Например: backend react"
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={handleKeywordKeyDown}
+                onBlur={commitKeywordInput}
+              />
+            </div>
           </label>
           <label className="filter-group">
             <span>Город</span>
-            <input
-              placeholder="Например: Москва"
+            <select
               value={filters.city}
               onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-            />
+            >
+              <option value="">Любой город</option>
+              {CITY_OPTIONS.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
           </label>
           <label className="filter-group">
             <span>Удаленная работа</span>
@@ -216,31 +363,47 @@ export default function VacanciesPage() {
             </select>
           </label>
           <label className="filter-group">
-            <span>Зарплата от</span>
-            <input
-              type="number"
-              placeholder="от 2000"
-              value={filters.salary_from}
-              onChange={(e) => setFilters({ ...filters, salary_from: e.target.value })}
-            />
+            <span>Зарплата</span>
+            <div className="range-field">
+              <div className="range-values">
+                <span>от {filters.salary_from.toLocaleString("ru-RU")}</span>
+                <span>до {filters.salary_to.toLocaleString("ru-RU")}</span>
+              </div>
+              <div className="range-sliders">
+                <input
+                  type="range"
+                  min={SALARY_MIN}
+                  max={SALARY_MAX}
+                  step={SALARY_STEP}
+                  value={filters.salary_from}
+                  onChange={(e) => handleSalaryFromChange(e.target.value)}
+                />
+                <input
+                  type="range"
+                  min={SALARY_MIN}
+                  max={SALARY_MAX}
+                  step={SALARY_STEP}
+                  value={filters.salary_to}
+                  onChange={(e) => handleSalaryToChange(e.target.value)}
+                />
+              </div>
+            </div>
           </label>
-          <label className="filter-group">
-            <span>Зарплата до</span>
-            <input
-              type="number"
-              placeholder="до 5000"
-              value={filters.salary_to}
-              onChange={(e) => setFilters({ ...filters, salary_to: e.target.value })}
-            />
-          </label>
-          <label className="filter-group">
+          <div className="filter-group">
             <span>Источник</span>
-            <input
-              placeholder="hh / manual"
-              value={filters.source}
-              onChange={(e) => setFilters({ ...filters, source: e.target.value })}
-            />
-          </label>
+            <div className="source-options">
+              {SOURCE_OPTIONS.map((source) => (
+                <label key={source.value} className="source-chip">
+                  <input
+                    type="checkbox"
+                    checked={sourceFilters.includes(source.value)}
+                    onChange={() => toggleSource(source.value)}
+                  />
+                  {source.label}
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="filter-group">
             <span>Показ</span>
             <button className="primary" type="submit">Найти</button>
@@ -264,27 +427,6 @@ export default function VacanciesPage() {
             Только избранные
           </label>
         </div>
-        {user?.role === "seeker" && (
-          <div className="card hh-card desktop-only">
-            <h4>Подтянуть вакансии с HH.ru</h4>
-            <div className="filter-grid">
-              <label className="filter-group">
-                <span>Запрос</span>
-                <input value={hhText} onChange={(e) => setHhText(e.target.value)} />
-              </label>
-              <label className="filter-group">
-                <span>Город (area id)</span>
-                <input value={hhArea} onChange={(e) => setHhArea(e.target.value)} />
-              </label>
-              <div className="filter-group">
-                <span>Действие</span>
-                <button className="primary" type="button" onClick={handleParseHH}>
-                  Подтянуть
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="card">
@@ -292,6 +434,7 @@ export default function VacanciesPage() {
         <div className="list">
           {filteredVacancies.map((vacancy) => {
             const meta = vacancyMatchMap.get(vacancy.id);
+            const salaryLabel = formatSalary(vacancy);
             return (
             <div className="list-item" key={vacancy.id}>
               <div>
@@ -301,7 +444,18 @@ export default function VacanciesPage() {
                     dangerouslySetInnerHTML={{ __html: highlight(vacancy, vacancy.title) }}
                   />
                 </h4>
-                <p className="muted">{vacancy.company || "Компания"} · {vacancy.city || ""}</p>
+                <p className="muted">{vacancy.company || "Компания"}</p>
+                <div className="vacancy-badges">
+                  {salaryLabel && (
+                    <span className="badge badge-salary">{salaryLabel}</span>
+                  )}
+                  {vacancy.city && (
+                    <span className="badge badge-city">{vacancy.city}</span>
+                  )}
+                  {vacancy.source && (
+                    <span className="badge badge-source">{vacancy.source}</span>
+                  )}
+                </div>
                 <p className="muted">{vacancy.url}</p>
                 {meta && (
                   <div className="match-meter">
@@ -356,17 +510,35 @@ export default function VacanciesPage() {
           }}>
             <label className="filter-group">
               <span>Ключевые слова</span>
-              <input
-                value={filters.text}
-                onChange={(e) => setFilters({ ...filters, text: e.target.value })}
-              />
+              <div className="token-input">
+                {keywordTokens.map((token) => (
+                  <span className="token-chip" key={`mobile-${token}`}>
+                    {token}
+                    <button type="button" onClick={() => setKeywordTokens((prev) => prev.filter((item) => item !== token))}>
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={keywordInput}
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  onKeyDown={handleKeywordKeyDown}
+                  onBlur={commitKeywordInput}
+                  placeholder="Например: backend react"
+                />
+              </div>
             </label>
             <label className="filter-group">
               <span>Город</span>
-              <input
+              <select
                 value={filters.city}
                 onChange={(e) => setFilters({ ...filters, city: e.target.value })}
-              />
+              >
+                <option value="">Любой город</option>
+                {CITY_OPTIONS.map((city) => (
+                  <option key={`mobile-${city}`} value={city}>{city}</option>
+                ))}
+              </select>
             </label>
             <label className="filter-group">
               <span>Удаленка</span>
@@ -380,28 +552,47 @@ export default function VacanciesPage() {
               </select>
             </label>
             <label className="filter-group">
-              <span>Зарплата от</span>
-              <input
-                type="number"
-                value={filters.salary_from}
-                onChange={(e) => setFilters({ ...filters, salary_from: e.target.value })}
-              />
+              <span>Зарплата</span>
+              <div className="range-field">
+                <div className="range-values">
+                  <span>от {filters.salary_from.toLocaleString("ru-RU")}</span>
+                  <span>до {filters.salary_to.toLocaleString("ru-RU")}</span>
+                </div>
+                <div className="range-sliders">
+                  <input
+                    type="range"
+                    min={SALARY_MIN}
+                    max={SALARY_MAX}
+                    step={SALARY_STEP}
+                    value={filters.salary_from}
+                    onChange={(e) => handleSalaryFromChange(e.target.value)}
+                  />
+                  <input
+                    type="range"
+                    min={SALARY_MIN}
+                    max={SALARY_MAX}
+                    step={SALARY_STEP}
+                    value={filters.salary_to}
+                    onChange={(e) => handleSalaryToChange(e.target.value)}
+                  />
+                </div>
+              </div>
             </label>
-            <label className="filter-group">
-              <span>Зарплата до</span>
-              <input
-                type="number"
-                value={filters.salary_to}
-                onChange={(e) => setFilters({ ...filters, salary_to: e.target.value })}
-              />
-            </label>
-            <label className="filter-group">
+            <div className="filter-group">
               <span>Источник</span>
-              <input
-                value={filters.source}
-                onChange={(e) => setFilters({ ...filters, source: e.target.value })}
-              />
-            </label>
+              <div className="source-options">
+                {SOURCE_OPTIONS.map((source) => (
+                  <label key={`mobile-${source.value}`} className="source-chip">
+                    <input
+                      type="checkbox"
+                      checked={sourceFilters.includes(source.value)}
+                      onChange={() => toggleSource(source.value)}
+                    />
+                    {source.label}
+                  </label>
+                ))}
+              </div>
+            </div>
             <label className="toggle">
               <input
                 type="checkbox"
@@ -418,21 +609,6 @@ export default function VacanciesPage() {
               />
               Только избранные
             </label>
-            {user?.role === "seeker" && (
-              <>
-                <label className="filter-group">
-                  <span>HH.ru запрос</span>
-                  <input value={hhText} onChange={(e) => setHhText(e.target.value)} />
-                </label>
-                <label className="filter-group">
-                  <span>HH.ru area id</span>
-                  <input value={hhArea} onChange={(e) => setHhArea(e.target.value)} />
-                </label>
-                <button className="ghost" type="button" onClick={handleParseHH}>
-                  Подтянуть с HH
-                </button>
-              </>
-            )}
             <button className="primary" type="submit">Применить</button>
           </form>
         </div>

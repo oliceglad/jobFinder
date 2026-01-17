@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 
@@ -8,7 +8,7 @@ from app.api.deps import require_roles, get_current_user
 from app.models import Vacancy, VacancySkill, User
 from app.schemas.vacancy import VacancyCreate, VacancyOut, VacancyUpdate
 from app.services.vacancy_service import VacancyService
-from app.services.hh_service import HHService
+from app.tasks import parse_hh_vacancies_task
 
 router = APIRouter()
 DEFAULT_LIMIT = 20
@@ -23,6 +23,24 @@ def _normalize_pagination(limit: int, offset: int) -> tuple[int, int]:
         offset = 0
     return limit, offset
 
+
+def _queue_hh_parse(
+    text: str | None,
+    city: str | None,
+    source: str | None,
+    limit: int,
+    offset: int,
+) -> None:
+    if offset != 0:
+        return
+    if source and source != "hh":
+        return
+    terms = " ".join(filter(None, [text, city])).strip()
+    if not terms:
+        return
+    per_page = min(max(limit, 1), 20)
+    parse_hh_vacancies_task.delay(terms, None, 1, per_page, False)
+
 @router.get("/", response_model=list[VacancyOut])
 async def get_vacancies(
     limit: int = DEFAULT_LIMIT,
@@ -32,9 +50,9 @@ async def get_vacancies(
     limit, offset = _normalize_pagination(limit, offset)
     query = (
         select(Vacancy)
+        .where(Vacancy.moderation_status == "approved")
         .order_by(
-            Vacancy.published_at.is_(None),
-            Vacancy.published_at.desc(),
+            Vacancy.published_at.desc().nulls_last(),
             Vacancy.id.desc(),
         )
         .offset(offset)
@@ -58,7 +76,7 @@ async def search_vacancies(
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Vacancy).distinct()
+    query = select(Vacancy).distinct().where(Vacancy.moderation_status == "approved")
 
     if text:
         ilike = f"%{text}%"
@@ -94,10 +112,10 @@ async def search_vacancies(
         query = query.join(VacancySkill).where(VacancySkill.skill_id.in_(skill_ids))
 
     limit, offset = _normalize_pagination(limit, offset)
+    _queue_hh_parse(text, city, source, limit, offset)
     query = (
         query.order_by(
-            Vacancy.published_at.is_(None),
-            Vacancy.published_at.desc(),
+            Vacancy.published_at.desc().nulls_last(),
             Vacancy.id.desc(),
         )
         .offset(offset)
@@ -113,7 +131,12 @@ async def get_vacancies_by_ids(
 ):
     if not ids:
         return []
-    result = await db.execute(select(Vacancy).where(Vacancy.id.in_(ids)))
+    result = await db.execute(
+        select(Vacancy).where(
+            Vacancy.id.in_(ids),
+            Vacancy.moderation_status == "approved",
+        )
+    )
     return result.scalars().all()
 
 @router.get("/{vacancy_id}", response_model=VacancyOut)
@@ -121,7 +144,12 @@ async def get_vacancy(
     vacancy_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Vacancy).where(Vacancy.id == vacancy_id))
+    result = await db.execute(
+        select(Vacancy).where(
+            Vacancy.id == vacancy_id,
+            Vacancy.moderation_status == "approved",
+        )
+    )
     vacancy = result.scalar_one_or_none()
     if not vacancy:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vacancy not found")
@@ -137,6 +165,7 @@ async def create_vacancy(
     if current_user.role != "admin":
         payload["parsed_from_hh"] = False
         payload["source"] = "manual"
+        payload["moderation_status"] = "pending"
     vacancy = await VacancyService.create_vacancy(
         db=db,
         data=payload,
@@ -172,7 +201,6 @@ async def update_vacancy(
 @router.post("/parse/hh")
 async def parse_hh_vacancies(
     text: str,
-    background_tasks: BackgroundTasks,
     area: int | None = None,
     pages: int = 1,
     per_page: int = 20,
@@ -187,8 +215,7 @@ async def parse_hh_vacancies(
         pages = min(pages, 2)
         per_page = min(per_page, 20)
 
-    background_tasks.add_task(
-        HHService.parse_and_store,
+    parse_hh_vacancies_task.delay(
         text,
         area,
         pages,

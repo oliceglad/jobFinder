@@ -11,9 +11,11 @@ export default function GlobalStatus() {
   if (!isFetching && !isMutating) return null;
 
   return (
-    <div className="global-loading">
-      <span className="spinner" />
-      Загрузка…
+    <div className="global-loading-backdrop">
+      <div className="global-loading-card">
+        <span className="spinner" />
+        Загрузка…
+      </div>
     </div>
   );
 }

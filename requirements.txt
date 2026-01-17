@@ -41,3 +41,4 @@ python-dotenv
 psycopg2-binary
 python-multipart
 pillow
+celery[redis]

@@ -17,6 +17,7 @@ services:
       - DEMO_SEED_ENABLED=true
     depends_on:
       - postgres
+      - redis
   frontend:
     build:
       context: ./frontend
@@ -39,6 +40,24 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: vacancy_redis
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build: .
+    container_name: vacancy_celery_worker
+    command: celery -A app.core.celery_app:celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
 
 volumes:
   pgdata:

@@ -33,6 +33,7 @@ class Vacancy(Base):
     source: Mapped[str] = mapped_column(String(50))  # hh / avito / superjob
     parsed_from_hh: Mapped[bool] = mapped_column(Boolean, default=False)
     external_id: Mapped[str | None] = mapped_column(String(100), index=True)
+    moderation_status: Mapped[str] = mapped_column(String(20), default="approved")
 
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     published_at: Mapped[datetime | None] = mapped_column(DateTime)

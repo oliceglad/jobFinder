@@ -10,3 +10,4 @@ from .application_status import ApplicationStatus
 from .notification import Notification
 from .vacancy_notification import VacancyNotification
 from .recommendation_cache import RecommendationCache
+from .vacancy_moderation_log import VacancyModerationLog

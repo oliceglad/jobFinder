@@ -13,6 +13,9 @@ class ApplicationStatus(Base):
 
     status: Mapped[str] = mapped_column(String(50))
     notes: Mapped[str | None] = mapped_column(Text)
+    contact_name: Mapped[str | None] = mapped_column(String(255))
+    contact_email: Mapped[str | None] = mapped_column(String(255))
+    contact_phone: Mapped[str | None] = mapped_column(String(50))
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     user: Mapped["User"] = relationship(back_populates="applications", lazy="selectin")

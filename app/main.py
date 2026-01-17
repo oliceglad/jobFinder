@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, skills, vacancies, recommendations, profiles, favorites, applications, admin
+from app.api import auth, skills, vacancies, recommendations, profiles, favorites, applications, admin, dashboard, talents
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.models import User
@@ -32,10 +32,12 @@ app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(skills.router, prefix="/skills", tags=["Skills"])
 app.include_router(vacancies.router, prefix="/vacancies", tags=["Vacancies"])
 app.include_router(recommendations.router, prefix="/recommendations", tags=["Recommendations"])
+app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(profiles.router, prefix="/profiles", tags=["Profiles"])
 app.include_router(favorites.router, prefix="/favorites", tags=["Favorites"])
 app.include_router(applications.router, prefix="/applications", tags=["Applications"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(talents.router, prefix="/talents", tags=["Talents"])
 app.mount(settings.MEDIA_URL, StaticFiles(directory=settings.MEDIA_DIR), name="media")
 
 if settings.NOTIFICATIONS_ENABLED:

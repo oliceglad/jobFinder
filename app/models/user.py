@@ -1,4 +1,4 @@
-from sqlalchemy import String, DateTime
+from sqlalchemy import String, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 
@@ -11,6 +11,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default="seeker")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
     skills: Mapped[list["UserSkill"]] = relationship(back_populates="user", lazy="selectin")

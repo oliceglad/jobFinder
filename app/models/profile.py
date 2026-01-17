@@ -26,4 +26,8 @@ class Profile(Base):
     keywords: Mapped[str | None] = mapped_column(Text)
     about: Mapped[str | None] = mapped_column(Text)
 
+    company_name: Mapped[str | None] = mapped_column(String(255))
+    company_site: Mapped[str | None] = mapped_column(String(255))
+    company_description: Mapped[str | None] = mapped_column(Text)
+
     user: Mapped["User"] = relationship(back_populates="profile", lazy="selectin")

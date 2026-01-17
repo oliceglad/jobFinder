@@ -16,18 +16,18 @@ router = APIRouter()
 
 @router.get("/me", response_model=ProfileOut)
 async def get_my_profile(
-    current_user: User = Depends(require_roles("seeker", "admin")),
+    current_user: User = Depends(require_roles("seeker", "employer", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     profile = await ProfileService.get_by_user_id(db, current_user.id)
     if profile is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+        profile = await ProfileService.create_or_update(db, current_user.id, {})
     return profile
 
 @router.put("/me", response_model=ProfileOut)
 async def upsert_my_profile(
     data: ProfileUpdate,
-    current_user: User = Depends(require_roles("seeker", "admin")),
+    current_user: User = Depends(require_roles("seeker", "employer", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     return await ProfileService.create_or_update(db, current_user.id, data.dict(exclude_unset=True))
@@ -36,7 +36,7 @@ async def upsert_my_profile(
 @router.post("/me/avatar", response_model=ProfileOut)
 async def upload_avatar(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_roles("seeker", "admin")),
+    current_user: User = Depends(require_roles("seeker", "employer", "admin")),
     db: AsyncSession = Depends(get_db),
 ):
     if not file.content_type or not file.content_type.startswith("image/"):
