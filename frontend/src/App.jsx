@@ -34,7 +34,7 @@ export default function App() {
 
   const { data: skills = [] } = useSkillsQuery(undefined, { skip: !token });
   const { data: userSkills = [] } = useUserSkillsQuery(undefined, { skip: !token });
-  const { data: profile, error: profileError, isLoading: profileLoading, isFetching: profileFetching } = useProfileQuery(
+  const { data: profile, isLoading: profileLoading, isFetching: profileFetching } = useProfileQuery(
     undefined,
     { skip: !token || user?.role !== "seeker" }
   );
@@ -42,24 +42,38 @@ export default function App() {
   const [addUserSkill] = useAddUserSkillMutation();
   const [updateProfile] = useUpdateProfileMutation();
   const [uploadAvatar] = useUploadAvatarMutation();
+  const onboardingDismissed = user
+    ? window.localStorage.getItem(`onboarding-closed-${user.id}`) === "true"
+    : false;
 
-  const profileValue = profileError?.status === 404 ? null : profile;
   const onboardingNeeded = useMemo(() => {
     if (!user || user.role !== "seeker") return false;
     if (profileLoading || profileFetching) return false;
-    if (profileError?.status === 404) return true;
-    return false;
-  }, [user, profileLoading, profileFetching, profileError]);
+    if (!profile) return true;
+    const requiredProfileFields = [
+      "full_name",
+      "city",
+      "work_format",
+    ];
+    const hasRequiredProfile = requiredProfileFields.every((field) => {
+      const value = profile[field];
+      return value !== null && value !== undefined && String(value).trim() !== "";
+    });
+    return !hasRequiredProfile;
+  }, [
+    user,
+    profileLoading,
+    profileFetching,
+    profile,
+  ]);
 
   const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   useEffect(() => {
-    if (onboardingNeeded) {
+    if (onboardingNeeded && !onboardingDismissed) {
       setOnboardingOpen(true);
-    } else {
-      setOnboardingOpen(false);
     }
-  }, [onboardingNeeded]);
+  }, [onboardingNeeded, onboardingDismissed]);
 
   return (
     <div className="app">
@@ -108,8 +122,11 @@ export default function App() {
           user={user}
           skills={skills}
           userSkills={userSkills}
-          profile={profileValue}
-          onClose={() => setOnboardingOpen(false)}
+          profile={profile}
+          onClose={() => {
+            window.localStorage.setItem(`onboarding-closed-${user.id}`, "true");
+            setOnboardingOpen(false);
+          }}
           onSaveProfile={updateProfile}
           onAddSkill={(skillId) => addUserSkill({ skill_id: skillId, level: null })}
           onAvatarUpload={(file) => file && uploadAvatar(file)}

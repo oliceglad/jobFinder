@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 import logging
 from typing import Any
@@ -27,26 +28,21 @@ class HHService:
         if area is not None:
             params["area"] = area
 
-        headers = {"User-Agent": "jobFinder/1.0"}
+        headers = {"User-Agent": "jobFinder/1.0 (admin@jobfinder.example.com)"}
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.get(f"{HH_API_BASE}/vacancies", params=params, headers=headers)
             response.raise_for_status()
             return response.json()
 
-    @staticmethod
-    async def fetch_vacancy_detail(vacancy_id: str) -> dict[str, Any]:
-        headers = {"User-Agent": "jobFinder/1.0"}
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.get(f"{HH_API_BASE}/vacancies/{vacancy_id}", headers=headers)
-            response.raise_for_status()
-            return response.json()
 
     @staticmethod
-    def map_hh_detail(detail: dict[str, Any]) -> dict[str, Any]:
-        salary = detail.get("salary") or {}
-        address = detail.get("address") or {}
+    def map_hh_list_item(item: dict[str, Any]) -> dict[str, Any]:
+        salary = item.get("salary") or {}
+        address = item.get("address") or {}
+        employer = item.get("employer") or {}
+        snippet = item.get("snippet") or {}
 
-        published_at = detail.get("published_at")
+        published_at = item.get("published_at")
         published_dt = None
         if published_at:
             try:
@@ -57,25 +53,32 @@ class HHService:
             except ValueError:
                 published_dt = None
 
+        req = snippet.get("requirement") or ""
+        resp = snippet.get("responsibility") or ""
+        desc = ""
+        if req or resp:
+            desc = f"{req}\n\n{resp}".strip()
+            # HH returns <highlighttext> tags sometimes, we can keep them or clean them if UI supports it, UI strips HTML so it's fine.
+
         return {
-            "title": detail.get("name"),
-            "description": detail.get("description") or "",
-            "requirements": detail.get("snippet", {}).get("requirement"),
-            "responsibilities": detail.get("snippet", {}).get("responsibility"),
-            "company": (detail.get("employer") or {}).get("name"),
-            "city": (detail.get("area") or {}).get("name"),
+            "title": item.get("name"),
+            "description": desc,
+            "requirements": req,
+            "responsibilities": resp,
+            "company": employer.get("name"),
+            "city": (item.get("area") or {}).get("name"),
             "region": (address.get("region") or {}).get("name") if isinstance(address.get("region"), dict) else address.get("region"),
-            "schedule": (detail.get("schedule") or {}).get("name"),
-            "employment": (detail.get("employment") or {}).get("name"),
-            "experience": (detail.get("experience") or {}).get("name"),
-            "is_remote": (detail.get("schedule") or {}).get("id") in ("remote", "flexible"),
+            "schedule": (item.get("schedule") or {}).get("name"),
+            "employment": (item.get("employment") or {}).get("name"),
+            "experience": (item.get("experience") or {}).get("name"),
+            "is_remote": (item.get("schedule") or {}).get("id") in ("remote", "flexible"),
             "salary_from": salary.get("from"),
             "salary_to": salary.get("to"),
             "salary_currency": salary.get("currency"),
-            "url": detail.get("alternate_url"),
+            "url": item.get("alternate_url"),
             "source": "hh",
             "parsed_from_hh": True,
-            "external_id": str(detail.get("id")),
+            "external_id": str(item.get("id")),
             "published_at": published_dt,
         }
 
@@ -100,17 +103,14 @@ class HHService:
                     items = payload.get("items", [])
 
                     for item in items:
-                        detail = await HHService.fetch_vacancy_detail(str(item.get("id")))
-                        vacancy_data = HHService.map_hh_detail(detail)
-                        vacancy = await VacancyService.upsert_from_hh(db, vacancy_data)
-
-                        key_skills = [
-                            ks.get("name")
-                            for ks in detail.get("key_skills", [])
-                            if ks.get("name")
-                        ]
-                        await VacancyService.attach_skills_by_names(db, vacancy, key_skills)
-                        saved_ids.add(vacancy.id)
+                        try:
+                            vacancy_data = HHService.map_hh_list_item(item)
+                            vacancy = await VacancyService.upsert_from_hh(db, vacancy_data)
+                            saved_ids.add(vacancy.id)
+                        except Exception as e:
+                            logging.warning(f"Failed to parse HH vacancy {item.get('id')}: {e}")
+                            
+                    await asyncio.sleep(0.5) # gentle sleep between pages, not per item
         except Exception:
             logging.exception("HH parsing failed")
 

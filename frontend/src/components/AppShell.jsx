@@ -54,8 +54,12 @@ export default function AppShell({ children, routeKey }) {
   }[user?.role] || "Пользователь";
 
   const handleLogout = () => {
+    if (user?.id) {
+      window.localStorage.removeItem(`onboarding-closed-${user.id}`);
+    }
     dispatch(logout());
     navigate("/auth");
+    window.location.reload();
   };
 
   return (

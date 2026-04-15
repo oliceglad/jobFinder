@@ -36,11 +36,13 @@ export default function AuthPage() {
         const data = await login({ email, password }).unwrap();
         dispatch(setToken(data.access_token));
         notify("Вы вошли в систему", "success");
+        window.location.reload();
       } else {
         await register({ email, password, role }).unwrap();
         const data = await login({ email, password }).unwrap();
         dispatch(setToken(data.access_token));
         notify("Аккаунт создан", "success");
+        window.location.reload();
       }
     } catch (err) {
       setError(err.message || "Ошибка авторизации");

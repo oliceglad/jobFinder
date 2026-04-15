@@ -210,7 +210,11 @@
 
 .card-footer {
   margin-top: 16px;
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
 }
 
 .form {
@@ -899,6 +903,12 @@ textarea {
   margin-top: 16px;
 }
 
+.wizard-skills {
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
 .skill-toolbar {
   display: grid;
   gap: 12px;
@@ -1005,6 +1015,22 @@ textarea {
 
 .wizard-header {
   margin-bottom: 24px;
+  position: relative;
+}
+
+.wizard-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.wizard-close:hover {
+  color: var(--ink);
 }
 
 .steps {
@@ -1404,6 +1430,7 @@ mark {
   .header-actions {
     width: 100%;
     justify-content: flex-start;
+    gap: 12px;
   }
   .email-pill {
     max-width: 100%;
@@ -1436,6 +1463,7 @@ mark {
   .actions {
     flex-direction: row;
     flex-wrap: wrap;
+    gap: 12px;
   }
   .tabs {
     display: none;

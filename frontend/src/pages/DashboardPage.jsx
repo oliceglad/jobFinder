@@ -247,7 +247,7 @@ export default function DashboardPage() {
             {recentIncoming.map((app) => (
               <div className="list-item" key={app.id}>
                 <div>
-                  <h4>{app.vacancy_title || `Вакансия #${app.vacancy_id}`}</h4>
+                  <h4>{(app.vacancy_title && app.vacancy_title.length > 50 ? app.vacancy_title.substring(0, 50) + "..." : app.vacancy_title) || `Вакансия #${app.vacancy_id}`}</h4>
                   <p className="muted">{app.seeker_name || app.seeker_email}</p>
                 </div>
                 <span className="badge badge-status">{statusLabel[app.status] || app.status}</span>

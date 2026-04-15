@@ -62,18 +62,20 @@ export default function AdminPage() {
       </div>
       <div className="card">
         <h3>Навыки</h3>
-        <button
-          className="primary"
-          onClick={() => seedSkills().unwrap().then(() => notify("Навыки загружены", "success"))}
-        >
-          Загрузить пул навыков
-        </button>
-        <button
-          className="ghost"
-          onClick={() => seedDemo().unwrap().then(() => notify("Демо-данные добавлены", "success"))}
-        >
-          Добавить демо вакансии и работодателя
-        </button>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '16px' }}>
+          <button
+            className="primary"
+            onClick={() => seedSkills().unwrap().then(() => notify("Навыки загружены", "success"))}
+          >
+            Загрузить пул навыков
+          </button>
+          <button
+            className="ghost"
+            onClick={() => seedDemo().unwrap().then(() => notify("Демо-данные добавлены", "success"))}
+          >
+            Добавить демо вакансии и работодателя
+          </button>
+        </div>
       </div>
       <div className="card">
         <h3>Модерация вакансий</h3>
@@ -96,7 +98,7 @@ export default function AdminPage() {
           {vacancies.map((vacancy) => (
             <div className="list-item admin-vacancy" key={vacancy.id}>
               <div>
-                <h4>{vacancy.title}</h4>
+                <h4>{vacancy.title && vacancy.title.length > 50 ? vacancy.title.substring(0, 50) + "..." : vacancy.title}</h4>
                 <p className="muted">{vacancy.company || "Компания"} · {vacancy.city || "Город не указан"}</p>
                 <div className="vacancy-badges">
                   <span className="badge badge-source">{vacancy.source}</span>
@@ -138,19 +140,21 @@ export default function AdminPage() {
       <div className="card">
         <h3>Журнал модерации</h3>
         <p className="muted">Последние изменения статусов вакансий.</p>
-        <button
-          className="ghost"
-          type="button"
-          onClick={() => window.open("/api/admin/moderation/logs/export", "_blank")}
-        >
-          Экспорт CSV
-        </button>
+        <div style={{ margin: '16px 0' }}>
+          <button
+            className="ghost"
+            type="button"
+            onClick={() => window.open("/api/admin/moderation/logs/export", "_blank")}
+          >
+            Экспорт CSV
+          </button>
+        </div>
         <div className="list">
           {moderationLogs.length === 0 && <p className="muted">Пока нет записей.</p>}
           {moderationLogs.slice(0, 20).map((log) => (
             <div className="list-item admin-log" key={log.id}>
               <div>
-                <h4>{log.vacancy_title || `Вакансия #${log.vacancy_id}`}</h4>
+                <h4>{(log.vacancy_title && log.vacancy_title.length > 50 ? log.vacancy_title.substring(0, 50) + "..." : log.vacancy_title) || `Вакансия #${log.vacancy_id}`}</h4>
                 <p className="muted">{log.admin_email || "Администратор"}</p>
                 <div className="vacancy-badges">
                   <span className="badge badge-status">{statusLabel[log.from_status] || log.from_status}</span>

@@ -185,7 +185,7 @@ export default function EmployerPage() {
             return (
               <div className="list-item application-card" key={app.id}>
                 <div>
-                  <h4>{app.vacancy_title || `Вакансия #${app.vacancy_id}`}</h4>
+                  <h4>{(app.vacancy_title && app.vacancy_title.length > 50 ? app.vacancy_title.substring(0, 50) + "..." : app.vacancy_title) || `Вакансия #${app.vacancy_id}`}</h4>
                   <p className="muted">{app.vacancy_company || "Компания"}</p>
                   <div className="application-meta">
                     <span className="badge badge-status">

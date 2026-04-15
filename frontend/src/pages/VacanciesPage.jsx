@@ -441,7 +441,7 @@ export default function VacanciesPage() {
                 <h4>
                   <Link
                     to={`/vacancies/${vacancy.id}`}
-                    dangerouslySetInnerHTML={{ __html: highlight(vacancy, vacancy.title) }}
+                    dangerouslySetInnerHTML={{ __html: highlight(vacancy, vacancy.title.length > 50 ? vacancy.title.substring(0, 50) + "..." : vacancy.title) }}
                   />
                 </h4>
                 <p className="muted">{vacancy.company || "Компания"}</p>

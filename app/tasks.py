@@ -2,6 +2,7 @@ import asyncio
 
 from app.core.celery_app import celery_app
 from app.services.hh_service import HHService
+from app.services.sj_service import SJService
 from app.services.notification_service import NotificationService
 from app.services.recommendation_service import RecommendationService
 
@@ -19,6 +20,15 @@ def parse_hh_vacancies_task(
     notify: bool,
 ):
     return _run_async(HHService.parse_and_store(text, area, pages, per_page, notify))
+
+@celery_app.task(name="app.tasks.parse_sj_vacancies")
+def parse_sj_vacancies_task(
+    text: str,
+    pages: int,
+    per_page: int,
+    notify: bool,
+):
+    return _run_async(SJService.parse_and_store(text, pages, per_page, notify))
 
 
 @celery_app.task(name="app.tasks.notify_users_by_role")

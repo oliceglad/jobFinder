@@ -11,6 +11,50 @@ export default function OnboardingWizard({
   onAddSkill,
   onAvatarUpload,
 }) {
+  const CITY_OPTIONS = [
+    "Москва",
+    "Санкт-Петербург",
+    "Новосибирск",
+    "Екатеринбург",
+    "Казань",
+    "Нижний Новгород",
+    "Челябинск",
+    "Самара",
+    "Омск",
+    "Ростов-на-Дону",
+    "Уфа",
+    "Красноярск",
+    "Пермь",
+    "Воронеж",
+    "Волгоград",
+    "Краснодар",
+    "Саратов",
+    "Тюмень",
+    "Тольятти",
+    "Ижевск",
+    "Барнаул",
+    "Ульяновск",
+    "Иркутск",
+    "Хабаровск",
+    "Ярославль",
+    "Владивосток",
+    "Махачкала",
+    "Томск",
+    "Оренбург",
+    "Кемерово",
+  ];
+  const WORK_FORMATS = [
+    "Офис",
+    "Гибрид",
+    "Удаленно",
+    "Гибкий график",
+  ];
+  const EMPLOYMENT_LEVELS = [
+    "Полная занятость",
+    "Частичная занятость",
+    "Проектная работа",
+    "Стажировка",
+  ];
   const { notify } = useToast();
   const [step, setStep] = useState(1);
   const [search, setSearch] = useState("");
@@ -25,6 +69,16 @@ export default function OnboardingWizard({
     desired_salary: profile?.desired_salary || "",
     keywords: profile?.keywords || "",
   });
+  const isStepOneValid = Boolean(
+    form.full_name.trim() && form.city.trim() && form.work_format.trim()
+  );
+  const isStepTwoValid = selectedSkills.size > 0;
+  const isStepThreeValid = Boolean(
+    form.employment_level.trim() &&
+      String(form.desired_salary).trim() &&
+      Number(form.desired_salary) > 0 &&
+      form.keywords.trim()
+  );
 
   const filteredSkills = useMemo(() => {
     return skills.filter((skill) =>
@@ -33,6 +87,7 @@ export default function OnboardingWizard({
   }, [skills, search]);
 
   const handleSaveProfile = async () => {
+    if (!isStepOneValid) return;
     await onSaveProfile({
       full_name: form.full_name,
       city: form.city,
@@ -46,6 +101,7 @@ export default function OnboardingWizard({
   };
 
   const handleSaveSkills = async () => {
+    if (!isStepTwoValid) return;
     for (const skillId of selectedSkills) {
       if (!userSkills.find((item) => item.skill?.id === skillId)) {
         await onAddSkill(skillId);
@@ -72,6 +128,9 @@ export default function OnboardingWizard({
         <div className="wizard-header">
           <h2>Привет, {user.email}</h2>
           <p>Заполним профиль за несколько шагов.</p>
+          <button className="wizard-close" type="button" onClick={onClose}>
+            Закрыть
+          </button>
           <div className="steps">
             {[1, 2, 3, 4].map((item) => (
               <div key={item} className={item <= step ? "step active" : "step"}>{item}</div>
@@ -90,13 +149,28 @@ export default function OnboardingWizard({
                 </label>
                 <label>
                   Город
-                  <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                  <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}>
+                    <option value="">Выберите город</option>
+                    {CITY_OPTIONS.map((city) => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Формат работы
-                  <input value={form.work_format} onChange={(e) => setForm({ ...form, work_format: e.target.value })} />
+                  <select
+                    value={form.work_format}
+                    onChange={(e) => setForm({ ...form, work_format: e.target.value })}
+                  >
+                    <option value="">Выберите формат</option>
+                    {WORK_FORMATS.map((format) => (
+                      <option key={format} value={format}>{format}</option>
+                    ))}
+                  </select>
                 </label>
-                <button className="primary" onClick={handleSaveProfile}>Далее</button>
+                <button className="primary" onClick={handleSaveProfile} disabled={!isStepOneValid}>
+                  Далее
+                </button>
               </div>
             </div>
           )}
@@ -109,7 +183,7 @@ export default function OnboardingWizard({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
-              <div className="skills">
+              <div className="skills wizard-skills">
                 {filteredSkills.map((skill) => (
                   <button
                     key={skill.id}
@@ -128,7 +202,9 @@ export default function OnboardingWizard({
                   </button>
                 ))}
               </div>
-              <button className="primary" onClick={handleSaveSkills}>Далее</button>
+              <button className="primary" onClick={handleSaveSkills} disabled={!isStepTwoValid}>
+                Далее
+              </button>
             </div>
           )}
           {step === 3 && (
@@ -137,7 +213,15 @@ export default function OnboardingWizard({
               <div className="form">
                 <label>
                   Уровень занятости
-                  <input value={form.employment_level} onChange={(e) => setForm({ ...form, employment_level: e.target.value })} />
+                  <select
+                    value={form.employment_level}
+                    onChange={(e) => setForm({ ...form, employment_level: e.target.value })}
+                  >
+                    <option value="">Выберите уровень</option>
+                    {EMPLOYMENT_LEVELS.map((level) => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Желаемая зарплата
@@ -147,7 +231,13 @@ export default function OnboardingWizard({
                   Ключевые слова
                   <input value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} />
                 </label>
-                <button className="primary" onClick={() => setStep(4)}>Далее</button>
+                <button
+                  className="primary"
+                  onClick={() => setStep(4)}
+                  disabled={!isStepThreeValid}
+                >
+                  Далее
+                </button>
               </div>
             </div>
           )}

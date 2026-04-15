@@ -18,7 +18,7 @@ export default function RecommendationsPage() {
         {recommendations.map((rec) => (
           <div className="list-item" key={rec.id}>
             <div>
-              <h4><Link to={`/recommendations/${rec.id}`}>{rec.title}</Link></h4>
+              <h4><Link to={`/recommendations/${rec.id}`}>{rec.title && rec.title.length > 50 ? rec.title.substring(0, 50) + "..." : rec.title}</Link></h4>
               <p className="muted">{rec.company || "Компания"} · {rec.city || ""}</p>
             </div>
             <div className="score">Score {rec.score}</div>

@@ -8,7 +8,7 @@ from app.api.deps import require_roles, get_current_user
 from app.models import Vacancy, VacancySkill, User
 from app.schemas.vacancy import VacancyCreate, VacancyOut, VacancyUpdate
 from app.services.vacancy_service import VacancyService
-from app.tasks import parse_hh_vacancies_task
+from app.tasks import parse_hh_vacancies_task, parse_sj_vacancies_task
 
 router = APIRouter()
 DEFAULT_LIMIT = 20
@@ -24,7 +24,7 @@ def _normalize_pagination(limit: int, offset: int) -> tuple[int, int]:
     return limit, offset
 
 
-def _queue_hh_parse(
+def _queue_parse_vacancies(
     text: str | None,
     city: str | None,
     source: str | None,
@@ -33,13 +33,15 @@ def _queue_hh_parse(
 ) -> None:
     if offset != 0:
         return
-    if source and source != "hh":
-        return
     terms = " ".join(filter(None, [text, city])).strip()
     if not terms:
-        return
+        terms = "Разработчик"
     per_page = min(max(limit, 1), 20)
-    parse_hh_vacancies_task.delay(terms, None, 1, per_page, False)
+    
+    if not source or source == "hh":
+        parse_hh_vacancies_task.delay(terms, None, 1, per_page, False)
+    if not source or source == "superjob":
+        parse_sj_vacancies_task.delay(terms, 1, per_page, False)
 
 @router.get("/", response_model=list[VacancyOut])
 async def get_vacancies(
@@ -48,6 +50,13 @@ async def get_vacancies(
     db: AsyncSession = Depends(get_db),
 ):
     limit, offset = _normalize_pagination(limit, offset)
+    
+    if offset == 0:
+        from sqlalchemy import func
+        count = await db.scalar(select(func.count(Vacancy.id)).where(Vacancy.source.in_(["superjob", "hh"])))
+        if count is not None and count < 20:
+            _queue_parse_vacancies(None, None, None, 10, 0)
+
     query = (
         select(Vacancy)
         .where(Vacancy.moderation_status == "approved")
@@ -112,7 +121,7 @@ async def search_vacancies(
         query = query.join(VacancySkill).where(VacancySkill.skill_id.in_(skill_ids))
 
     limit, offset = _normalize_pagination(limit, offset)
-    _queue_hh_parse(text, city, source, limit, offset)
+    _queue_parse_vacancies(text, city, source, limit, offset)
     query = (
         query.order_by(
             Vacancy.published_at.desc().nulls_last(),
@@ -198,8 +207,8 @@ async def update_vacancy(
     await db.refresh(vacancy)
     return vacancy
 
-@router.post("/parse/hh")
-async def parse_hh_vacancies(
+@router.post("/parse/hh") # Left as /parse/hh for frontend compatibility for now
+async def parse_vacancies_from_sources(
     text: str,
     area: int | None = None,
     pages: int = 1,
@@ -218,6 +227,12 @@ async def parse_hh_vacancies(
     parse_hh_vacancies_task.delay(
         text,
         area,
+        pages,
+        per_page,
+        notify,
+    )
+    parse_sj_vacancies_task.delay(
+        text,
         pages,
         per_page,
         notify,
